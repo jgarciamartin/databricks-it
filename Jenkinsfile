@@ -90,7 +90,7 @@ pipeline {
           set -euxo pipefail
           source .venv/bin/activate
 
-          databricks bundle validate -t "${DATABRICKS_BUNDLE_TARGET}"
+          .venv/bin/databricks bundle validate -t "${DATABRICKS_BUNDLE_TARGET}"
         '''
       }
     }
@@ -101,7 +101,7 @@ pipeline {
           set -euxo pipefail
           source .venv/bin/activate
 
-          databricks bundle deploy -t "${DATABRICKS_BUNDLE_TARGET}"
+          .venv/bin/databricks bundle deploy -t "${DATABRICKS_BUNDLE_TARGET}"
         '''
       }
     }
@@ -112,7 +112,7 @@ pipeline {
           set -euxo pipefail
           source .venv/bin/activate
 
-          databricks bundle run -t "${DATABRICKS_BUNDLE_TARGET}" cloudutils_integration_tests
+          .venv/bin/databricks bundle run -t "${DATABRICKS_BUNDLE_TARGET}" cloudutils_integration_tests
         '''
       }
     }
