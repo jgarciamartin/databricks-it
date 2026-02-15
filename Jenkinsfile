@@ -2,33 +2,36 @@ pipeline {
   agent any
 
   options {
+    // Evita checkout duplicado (Jenkins declarative ya hace checkout SCM)
     skipDefaultCheckout(false)
   }
 
   environment {
-    DATABRICKS_HOST = credentials('DATABRICKS_HOST')
+    DATABRICKS_HOST  = credentials('DATABRICKS_HOST')
     DATABRICKS_TOKEN = credentials('DATABRICKS_TOKEN')
 
-    // Target del bundle (si en databricks.yml tienes targets: dev:)
+    // Target del bundle (databricks.yml -> targets: dev:)
     DATABRICKS_BUNDLE_TARGET = 'dev'
 
-    // Fuerza auth por env vars para el CLI moderno
+    // Auth del CLI moderno por env vars
     DATABRICKS_AUTH_TYPE = 'pat'
   }
 
   stages {
 
+    // Si tu job es "Pipeline from SCM", Jenkins ya hace checkout.
+    // Puedes borrar este stage si quieres; no rompe nada.
     stage('Checkout') {
       steps {
         checkout scm
       }
     }
 
-  stage('Setup Python 3.12') {
-    steps {
-      dir('.') {
+    stage('Setup Python 3.12') {
+      steps {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
+
           pwd
           ls -la
           test -f pyproject.toml
@@ -36,15 +39,21 @@ pipeline {
           rm -rf .venv
           python3.12 -m venv .venv
           source .venv/bin/activate
+
           python -m pip install -U pip setuptools wheel
-          python -m pip install -U build          
-  
+          python -m pip install -U build
+
+          # Instala el Databricks CLI moderno dentro del venv (sin sudo)
+          python -m pip install -U databricks
+
+          python --version
+          databricks version
+          which databricks
         '''
       }
     }
-  }
 
-  stage('Build wheel') {
+    stage('Build wheel') {
       steps {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
@@ -56,12 +65,11 @@ pipeline {
           echo "Wheel(s) in dist/:"
           ls -la dist
 
-          # Guardar ruta del wheel para siguientes stages
           ls -1 dist/*.whl | head -n 1 > wheel_path.txt
           echo "Wheel built: $(cat wheel_path.txt)"
         '''
       }
-  }
+    }
 
     stage('Prepare bundle artifacts') {
       steps {
@@ -78,33 +86,12 @@ pipeline {
       }
     }
 
-    stage('Install Databricks CLI (bundle)') {
-      steps {
-        sh '''#!/usr/bin/env bash
-          set -euxo pipefail
-
-          # Instala el Databricks CLI moderno (soporta `databricks bundle ...`)
-          # Se instala en ~/.databricks/bin/databricks
-          export DATABRICKS_CLI_INSTALL_DIR="$HOME/.local/bin"
-          mkdir -p "$DATABRICKS_CLI_INSTALL_DIR"          
-          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | bash
-
-          # Asegura que está en PATH para este build
-          export PATH="$HOME/.local/bin:$PATH"
-
-          databricks version
-          which databricks
-        '''
-      }
-    }
-
     stage('Bundle validate') {
       steps {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
-          export PATH="$HOME/.local/bin:$PATH"
+          source .venv/bin/activate
 
-          # Validar bundle
           databricks bundle validate -t "${DATABRICKS_BUNDLE_TARGET}"
         '''
       }
@@ -114,28 +101,25 @@ pipeline {
       steps {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
-          export PATH="$HOME/.local/bin:$PATH"
+          source .venv/bin/activate
 
-          # Deploy bundle al workspace
           databricks bundle deploy -t "${DATABRICKS_BUNDLE_TARGET}"
         '''
       }
     }
 
-
     stage('Run integration tests (Databricks Job)') {
-          steps {
-            sh '''#!/usr/bin/env bash
-              set -euxo pipefail
-              export PATH="$HOME/.local/bin:$PATH"
+      steps {
+        sh '''#!/usr/bin/env bash
+          set -euxo pipefail
+          source .venv/bin/activate
 
-              # Ejecuta el job definido en databricks.yml.
-              # Cambia "cloudutils_integration_tests" por el nombre real en resources.jobs.<NOMBRE>
-              databricks bundle run -t "${DATABRICKS_BUNDLE_TARGET}" cloudutils_integration_tests
-            '''
-          }
-        }
+          databricks bundle run -t "${DATABRICKS_BUNDLE_TARGET}" cloudutils_integration_tests
+        '''
+      }
+    }
   }
+
   post {
     always {
       archiveArtifacts artifacts: 'dist/*.whl,artifacts/*,wheel_path.txt', fingerprint: true
