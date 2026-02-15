@@ -63,7 +63,7 @@ pipeline {
           export DATABRICKS_RUNTIME_VERSION="jenkins"
           mkdir -p "$HOME/bin"
 
-          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+          #curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
 
           export PATH="$HOME/bin:$PATH"
           databricks version
@@ -106,7 +106,7 @@ pipeline {
           export PATH="$HOME/bin:$PATH"
           export DATABRICKS_HOST="${DATABRICKS_HOST}"
           export DATABRICKS_TOKEN="${DATABRICKS_TOKEN}"
-          
+
           databricks bundle run -t "${DATABRICKS_BUNDLE_TARGET}" cloudutils_integration_tests
         '''
       }
