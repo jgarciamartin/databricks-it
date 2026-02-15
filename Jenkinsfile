@@ -47,8 +47,6 @@ pipeline {
           python -m pip install -U databricks
 
           python --version
-          databricks version
-          which databricks
         '''
       }
     }
