@@ -51,35 +51,30 @@ pipeline {
       }
     }
 
-    stage('Build wheel') {
-      steps {
-        sh '''#!/usr/bin/env bash
-          set -euxo pipefail
-          source .venv/bin/activate
-
-          rm -rf dist build *.egg-info
-          python -m build --wheel
-
-          echo "Wheel(s) in dist/:"
-          ls -la dist
-
-          ls -1 dist/*.whl | head -n 1 > wheel_path.txt
-          echo "Wheel built: $(cat wheel_path.txt)"
-        '''
-      }
-    }
-
-    stage('Prepare bundle artifacts') {
+    stage('Install Databricks CLI v2 (no sudo)') {
       steps {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
 
-          WHEEL="$(cat wheel_path.txt)"
-          mkdir -p artifacts
-          cp -f "$WHEEL" artifacts/cloudutils.whl
+          mkdir -p "$HOME/.local/bin"
+          export PATH="$HOME/.local/bin:$PATH"
 
-          echo "Bundle artifacts:"
-          ls -la artifacts
+          ARCH="$(uname -m)"
+          if [ "$ARCH" = "x86_64" ]; then
+            ASSET="databricks_linux_amd64"
+          elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+            ASSET="databricks_linux_arm64"
+          else
+            echo "Unsupported architecture: $ARCH"
+            exit 1
+          fi
+
+          curl -fsSL -o "$HOME/.local/bin/databricks" \
+            "https://github.com/databricks/cli/releases/latest/download/${ASSET}"
+          chmod +x "$HOME/.local/bin/databricks"
+
+          databricks version
+          databricks bundle --help >/dev/null
         '''
       }
     }
@@ -88,9 +83,9 @@ pipeline {
       steps {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
-          source .venv/bin/activate
+          export PATH="$HOME/.local/bin:$PATH"
 
-          .venv/bin/databricks bundle validate -t "${DATABRICKS_BUNDLE_TARGET}"
+          databricks bundle validate -t "${DATABRICKS_BUNDLE_TARGET}"
         '''
       }
     }
@@ -99,9 +94,9 @@ pipeline {
       steps {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
-          source .venv/bin/activate
+          export PATH="$HOME/.local/bin:$PATH"
 
-          .venv/bin/databricks bundle deploy -t "${DATABRICKS_BUNDLE_TARGET}"
+          databricks bundle deploy -t "${DATABRICKS_BUNDLE_TARGET}"
         '''
       }
     }
@@ -110,9 +105,10 @@ pipeline {
       steps {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
-          source .venv/bin/activate
+          export PATH="$HOME/.local/bin:$PATH"
 
-          .venv/bin/databricks bundle run -t "${DATABRICKS_BUNDLE_TARGET}" cloudutils_integration_tests
+          # Debe coincidir con resources.jobs.<nombre> en databricks.yml
+          databricks bundle run -t "${DATABRICKS_BUNDLE_TARGET}" cloudutils_integration_tests
         '''
       }
     }
