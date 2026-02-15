@@ -26,12 +26,14 @@ pipeline {
           pwd
           ls -la
           test -f pyproject.toml
-  
+
+          rm -rf .venv
           python3.12 -m venv .venv
           source .venv/bin/activate
           python -m pip install -U pip setuptools wheel
   
           python -m pip install -e ".[dev]"
+          pip show databricks-connect
         '''
       }
     }
@@ -53,7 +55,7 @@ pipeline {
           set -euxo pipefail
           . .venv/bin/activate
           # Fuerza serverless en Connect
-          
+
           export DATABRICKS_HOST="${DATABRICKS_HOST}"
           export DATABRICKS_TOKEN="${DATABRICKS_TOKEN}"
           export DATABRICKS_SERVERLESS_COMPUTE_ID="auto"
