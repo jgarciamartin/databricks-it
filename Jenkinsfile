@@ -78,6 +78,8 @@ pipeline {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
           export PATH="$HOME/bin:$PATH"
+          export DATABRICKS_HOST="${DATABRICKS_HOST}"
+          export DATABRICKS_TOKEN="${DATABRICKS_TOKEN}"
 
           databricks bundle validate -t "${DATABRICKS_BUNDLE_TARGET}"
         '''
@@ -89,6 +91,8 @@ pipeline {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
           export PATH="$HOME/bin:$PATH"
+          export DATABRICKS_HOST="${DATABRICKS_HOST}"
+          export DATABRICKS_TOKEN="${DATABRICKS_TOKEN}"
 
           databricks bundle deploy -t "${DATABRICKS_BUNDLE_TARGET}"
         '''
@@ -100,7 +104,9 @@ pipeline {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
           export PATH="$HOME/bin:$PATH"
-
+          export DATABRICKS_HOST="${DATABRICKS_HOST}"
+          export DATABRICKS_TOKEN="${DATABRICKS_TOKEN}"
+          
           databricks bundle run -t "${DATABRICKS_BUNDLE_TARGET}" cloudutils_integration_tests
         '''
       }
