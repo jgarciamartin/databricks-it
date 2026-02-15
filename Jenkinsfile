@@ -18,17 +18,24 @@ pipeline {
       }
     }
 
-    stage('Setup Python 3.12') {
-      steps {
+  stage('Setup Python 3.12') {
+    steps {
+      dir('.') {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
+          pwd
+          ls -la
+          test -f pyproject.toml
+  
           python3.12 -m venv .venv
-          . .venv/bin/activate
-          pip install -U pip
-          pip install -e ".[dev]"
+          source .venv/bin/activate
+          python -m pip install -U pip setuptools wheel
+  
+          python -m pip install -e ".[dev]"
         '''
       }
     }
+  }
 
     stage('Unit tests') {
       steps {
