@@ -102,7 +102,7 @@ pipeline {
       steps {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
-          export PATH="$HOME/.databricks/bin:$PATH"
+          export PATH="$HOME/.local/bin:$PATH"
 
           # Validar bundle
           databricks bundle validate -t "${DATABRICKS_BUNDLE_TARGET}"
@@ -114,7 +114,7 @@ pipeline {
       steps {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
-          export PATH="$HOME/.databricks/bin:$PATH"
+          export PATH="$HOME/.local/bin:$PATH"
 
           # Deploy bundle al workspace
           databricks bundle deploy -t "${DATABRICKS_BUNDLE_TARGET}"
@@ -127,7 +127,7 @@ pipeline {
           steps {
             sh '''#!/usr/bin/env bash
               set -euxo pipefail
-              export PATH="$HOME/.databricks/bin:$PATH"
+              export PATH="$HOME/.local/bin:$PATH"
 
               # Ejecuta el job definido en databricks.yml.
               # Cambia "cloudutils_integration_tests" por el nombre real en resources.jobs.<NOMBRE>
