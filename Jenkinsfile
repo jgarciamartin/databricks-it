@@ -52,7 +52,11 @@ pipeline {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
           . .venv/bin/activate
-
+          # Fuerza serverless en Connect
+          
+          export DATABRICKS_HOST="${DATABRICKS_HOST}"
+          export DATABRICKS_TOKEN="${DATABRICKS_TOKEN}"
+          export DATABRICKS_SERVERLESS_COMPUTE_ID="auto"
           mkdir -p ~/.databricks
           cat > ~/.databricks/config << EOF
 [DEFAULT]
