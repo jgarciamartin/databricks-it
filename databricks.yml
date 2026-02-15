@@ -5,7 +5,6 @@ targets:
   dev:
     default: true
     workspace:
-      host: ${DATABRICKS_HOST}
       root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
 
 resources:
@@ -16,7 +15,6 @@ resources:
       environments:
         - environment_key: default
           spec:
-            # Serverless environment version (reciente)
             environment_version: "4"
             dependencies:
               - "./artifacts/cloudutils.whl"
