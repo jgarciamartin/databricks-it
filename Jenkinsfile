@@ -20,7 +20,7 @@ pipeline {
 
     stage('Setup Python 3.12') {
       steps {
-        sh '''
+        sh '''#!/usr/bin/env bash
           set -euxo pipefail
           python3.12 -m venv .venv
           . .venv/bin/activate
@@ -32,7 +32,7 @@ pipeline {
 
     stage('Unit tests') {
       steps {
-        sh '''
+        sh '''#!/usr/bin/env bash
           set -euxo pipefail
           . .venv/bin/activate
           pytest -q tests/unit
@@ -42,7 +42,7 @@ pipeline {
 
     stage('Integration tests (Serverless)') {
       steps {
-        sh '''
+        sh '''#!/usr/bin/env bash
           set -euxo pipefail
           . .venv/bin/activate
 
