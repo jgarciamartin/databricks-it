@@ -2,8 +2,9 @@ pipeline {
   agent any
 
   options {
-    // Evita checkout duplicado (Jenkins declarative ya hace checkout SCM)
-    skipDefaultCheckout(false)
+    // Jenkins declarative ya hace checkout SCM; si lo dejas en false y además haces checkout scm
+    // tendrás checkout duplicado (no es grave). Para evitarlo:
+    skipDefaultCheckout(true)
   }
 
   environment {
@@ -13,40 +14,42 @@ pipeline {
     // Target del bundle (databricks.yml -> targets: dev:)
     DATABRICKS_BUNDLE_TARGET = 'dev'
 
-    // Auth del CLI moderno por env vars
+    // Auth del CLI v2 por env vars
     DATABRICKS_AUTH_TYPE = 'pat'
   }
 
   stages {
 
-    // Si tu job es "Pipeline from SCM", Jenkins ya hace checkout.
-    // Puedes borrar este stage si quieres; no rompe nada.
     stage('Checkout') {
       steps {
         checkout scm
       }
     }
 
-    stage('Setup Python 3.12') {
+    stage('Build wheel + prepare artifacts') {
       steps {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
 
-          pwd
-          ls -la
           test -f pyproject.toml
+          test -f databricks.yml
 
-          rm -rf .venv
+          rm -rf .venv dist build *.egg-info artifacts wheel_path.txt
+
           python3.12 -m venv .venv
           source .venv/bin/activate
 
-          python -m pip install -U pip setuptools wheel
-          python -m pip install -U build
+          python -m pip install -U pip setuptools wheel build
 
-          # Instala el Databricks CLI moderno dentro del venv (sin sudo)
-          python -m pip install -U databricks
+          python -m build --wheel
+          ls -la dist
 
-          python --version
+          ls -1 dist/*.whl | head -n 1 > wheel_path.txt
+          mkdir -p artifacts
+          cp -f "$(cat wheel_path.txt)" artifacts/cloudutils.whl
+
+          echo "Wheel: $(cat wheel_path.txt)"
+          ls -la artifacts
         '''
       }
     }
@@ -56,25 +59,16 @@ pipeline {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
 
-          mkdir -p "$HOME/.local/bin"
-          export PATH="$HOME/.local/bin:$PATH"
+          # Forzamos al install.sh a instalar en $HOME/bin (en vez de /usr/local/bin)
+          export DATABRICKS_RUNTIME_VERSION="jenkins"
+          mkdir -p "$HOME/bin"
 
-          ARCH="$(uname -m)"
-          if [ "$ARCH" = "x86_64" ]; then
-            ASSET="databricks_linux_amd64"
-          elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-            ASSET="databricks_linux_arm64"
-          else
-            echo "Unsupported architecture: $ARCH"
-            exit 1
-          fi
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
 
-          curl -fsSL -o "$HOME/.local/bin/databricks" \
-            "https://github.com/databricks/cli/releases/latest/download/${ASSET}"
-          chmod +x "$HOME/.local/bin/databricks"
-
+          export PATH="$HOME/bin:$PATH"
           databricks version
           databricks bundle --help >/dev/null
+          which databricks
         '''
       }
     }
@@ -83,7 +77,7 @@ pipeline {
       steps {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
-          export PATH="$HOME/.local/bin:$PATH"
+          export PATH="$HOME/bin:$PATH"
 
           databricks bundle validate -t "${DATABRICKS_BUNDLE_TARGET}"
         '''
@@ -94,7 +88,7 @@ pipeline {
       steps {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
-          export PATH="$HOME/.local/bin:$PATH"
+          export PATH="$HOME/bin:$PATH"
 
           databricks bundle deploy -t "${DATABRICKS_BUNDLE_TARGET}"
         '''
@@ -105,9 +99,8 @@ pipeline {
       steps {
         sh '''#!/usr/bin/env bash
           set -euxo pipefail
-          export PATH="$HOME/.local/bin:$PATH"
+          export PATH="$HOME/bin:$PATH"
 
-          # Debe coincidir con resources.jobs.<nombre> en databricks.yml
           databricks bundle run -t "${DATABRICKS_BUNDLE_TARGET}" cloudutils_integration_tests
         '''
       }
