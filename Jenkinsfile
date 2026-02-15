@@ -85,12 +85,15 @@ pipeline {
 
           # Instala el Databricks CLI moderno (soporta `databricks bundle ...`)
           # Se instala en ~/.databricks/bin/databricks
+          export DATABRICKS_CLI_INSTALL_DIR="$HOME/.local/bin"
+          mkdir -p "$DATABRICKS_CLI_INSTALL_DIR"          
           curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | bash
 
           # Asegura que está en PATH para este build
-          export PATH="$HOME/.databricks/bin:$PATH"
+          export PATH="$HOME/.local/bin:$PATH"
 
           databricks version
+          which databricks
         '''
       }
     }
